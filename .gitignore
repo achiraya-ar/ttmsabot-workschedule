@@ -1,0 +1,56 @@
+# Node modules
+node_modules/
+
+# Build output
+dist/
+build/
+.vite/
+.out/
+coverage/
+*.tgz
+
+# Vite / bundler caches
+.cache/
+.parcel-cache/
+.eslintcache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# TypeScript build info
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE / editor directories
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Environment files (local secrets)
+# Keep a sample env (e.g. .env.example) in the repo — it's excluded below so it is not ignored.
+.env
+.env.local
+.env.*.local
+.env.*.secret
+.env.*.key
+.env.*.private
+
+# If you keep an example env file in the repo, don't ignore it
+!.env.example
+
+# Optional: ignore local npm/yarn/pnpm state
+.pnp.*
+.pnp.js
+
+# Misc
+coverage/
+nyc_output/
