@@ -7,6 +7,8 @@ export interface ScheduleData {
   employees: string[]
   times: string[]
   appointments: Record<string, AppointmentCell>
+  isHoliday: boolean
+  holidayDescription: string | null
 }
 
 export interface Booking {
@@ -29,6 +31,29 @@ export interface Blockage {
   block_date: string
   block_time: string
   reason: string | null
+}
+
+export interface RegisteredPatient {
+  patient_id: string
+  first_name: string
+  last_name: string
+  phone_number: string
+  can_self_book: boolean
+}
+
+export interface BookingInfo {
+  date: string
+  time: string
+  therapist: string
+  patientId: string
+  patientFirstName: string
+  patientLastName: string
+  patientPhone: string
+}
+
+export interface BookingResult {
+  success: boolean
+  message?: string
 }
 
 export interface UserProfile {

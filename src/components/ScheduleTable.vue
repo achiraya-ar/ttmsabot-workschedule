@@ -1,8 +1,18 @@
 <script setup lang="ts">
 import type { AppointmentCell, ScheduleData } from '../types'
 
-const props = defineProps<{
-    data: ScheduleData
+const props = withDefaults(
+    defineProps<{
+        data: ScheduleData
+        isHoliday?: boolean
+    }>(),
+    {
+        isHoliday: false,
+    },
+)
+
+const emit = defineEmits<{
+    (e: 'book', payload: { time: string; therapist: string }): void
 }>()
 
 function getCell(time: string, emp: string): AppointmentCell | undefined {
@@ -29,14 +39,22 @@ function parseContent(cell: AppointmentCell) {
 </script>
 
 <template>
-    <div v-if="!props.data.employees.length" class="empty-state">
+    <div
+        v-if="!props.data.employees.length"
+        class="empty-state"
+        :class="{ 'empty-state--holiday': props.isHoliday }"
+    >
         <i class="fa-solid fa-calendar-xmark"></i>
         ไม่มีพนักงานปฏิบัติงานในวันที่เลือก
     </div>
 
-    <div v-else class="schedule-table-card">
+    <div
+        v-else
+        class="schedule-table-card"
+        :class="{ 'schedule-table-card--holiday': props.isHoliday }"
+    >
         <!-- Status legend -->
-        <div class="schedule-legend">
+        <div v-if="!props.isHoliday" class="schedule-legend">
             <span class="legend-item">
                 <span class="legend-dot dot-available"></span>
                 ว่าง
@@ -105,7 +123,16 @@ function parseContent(cell: AppointmentCell) {
                             </template>
 
                             <template v-else-if="getCell(time, emp)?.status === 'AVAILABLE'">
-                                <span class="available-badge">
+                                <button
+                                    v-if="!props.isHoliday"
+                                    type="button"
+                                    class="available-badge available-badge-button"
+                                    @click="emit('book', { time, therapist: emp })"
+                                >
+                                    <span class="available-dot"></span>
+                                    ว่าง
+                                </button>
+                                <span v-else class="available-badge">
                                     <span class="available-dot"></span>
                                     ว่าง
                                 </span>
@@ -139,6 +166,16 @@ function parseContent(cell: AppointmentCell) {
     margin-bottom: 0.5rem;
     font-size: 1.5rem;
     color: #94a3b8;
+}
+
+.empty-state--holiday {
+    border-color: #fcd34d;
+    background: #fffbeb;
+    color: #92400e;
+}
+
+.empty-state--holiday i {
+    color: #b45309;
 }
 
 /* ── Table card ──────────────────────────────────────────────── */
@@ -359,6 +396,27 @@ function parseContent(cell: AppointmentCell) {
     opacity: 0.95;
 }
 
+.available-badge-button {
+    border: 0;
+    cursor: pointer;
+    font-family: inherit;
+    transition:
+        transform 0.15s ease,
+        background-color 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+.available-badge-button:hover {
+    background: #15803d;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(22, 163, 74, 0.3);
+}
+
+.available-badge-button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.25);
+}
+
 .blocked-badge {
     display: inline-flex;
     align-items: center;
@@ -380,5 +438,58 @@ function parseContent(cell: AppointmentCell) {
 
 .off-schedule {
     color: #cbd5e1;
+}
+
+/* ── Holiday theme ───────────────────────────────────────────── */
+.schedule-table-card--holiday {
+    border-color: #fcd34d;
+    background: #fffbeb;
+    box-shadow: 0 4px 14px rgba(180, 83, 9, 0.08);
+}
+
+.schedule-table-card--holiday .schedule-table thead th,
+.schedule-table-card--holiday .schedule-table tbody td {
+    background: #fef3c7 !important;
+    border-color: #fcd34d !important;
+    color: #78350f;
+}
+
+.schedule-table-card--holiday .schedule-table thead th {
+    background: #fde68a !important;
+}
+
+.schedule-table-card--holiday .schedule-table tbody tr:hover td {
+    background: #fde68a !important;
+}
+
+.schedule-table-card--holiday .available-badge {
+    background: #f59e0b;
+    color: #ffffff;
+    box-shadow: none;
+}
+
+.schedule-table-card--holiday .available-dot {
+    background: #ffffff;
+}
+
+.schedule-table-card--holiday .booked-name {
+    color: #78350f;
+}
+
+.schedule-table-card--holiday .booked-phone {
+    color: #92400e;
+}
+
+.schedule-table-card--holiday .blocked-badge {
+    background: #fde68a;
+    color: #92400e;
+}
+
+.schedule-table-card--holiday .blocked-reason {
+    color: #92400e;
+}
+
+.schedule-table-card--holiday .off-schedule {
+    color: #b45309;
 }
 </style>

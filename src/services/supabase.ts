@@ -1,5 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
-import type { ScheduleData, AppointmentCell } from "../types";
+import type {
+  ScheduleData,
+  AppointmentCell,
+  RegisteredPatient,
+  BookingInfo,
+  BookingResult,
+} from "../types";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -60,7 +66,7 @@ export async function getDailyScheduleData(
   const selectedDate = new Date(dateString + "T00:00:00");
   const dayOfWeek = selectedDate.getDay();
 
-  const [versionsRes, bookingsRes, blockagesRes] = await Promise.all([
+  const [versionsRes, bookingsRes, blockagesRes, holidayRes] = await Promise.all([
     supabaseClient
       .from("schedule_versions")
       .select("id, therapist_name, day_of_week, time_slots, effective_from")
@@ -68,6 +74,11 @@ export async function getDailyScheduleData(
       .lte("effective_from", dateString),
     supabaseClient.from("bookings").select("*").eq("booking_date", dateString),
     supabaseClient.from("blockages").select("*").eq("block_date", dateString),
+    supabaseClient
+      .from("holidays")
+      .select("description")
+      .eq("holiday_date", dateString)
+      .maybeSingle(),
   ]);
 
   if (versionsRes.error && !isMissingTableError(versionsRes.error)) {
@@ -75,6 +86,10 @@ export async function getDailyScheduleData(
   }
   if (bookingsRes.error) throw bookingsRes.error;
   if (blockagesRes.error) throw blockagesRes.error;
+  if (holidayRes.error) throw holidayRes.error;
+
+  const holidayDescription = holidayRes.data?.description ?? null;
+  const isHoliday = !!holidayRes.data;
 
   const onDutySchedules = resolveEffectiveSchedules(
     dateString,
@@ -95,7 +110,13 @@ export async function getDailyScheduleData(
     .sort();
 
   if (employees.length === 0) {
-    return { employees: [], times: [], appointments: {} };
+    return {
+      employees: [],
+      times: [],
+      appointments: {},
+      isHoliday,
+      holidayDescription,
+    };
   }
 
   const allTimesSet = new Set<string>();
@@ -158,5 +179,57 @@ export async function getDailyScheduleData(
     });
   });
 
-  return { employees, times, appointments };
+  return { employees, times, appointments, isHoliday, holidayDescription };
+}
+
+const SUPABASE_ERROR_CODE_NO_ROWS = "PGRST116";
+
+export async function checkPatientRegistration(
+  patientId: string,
+): Promise<{ data: RegisteredPatient | null; error: Error | null }> {
+  try {
+    const { data, error } = await supabaseClient
+      .from("bookings_register")
+      .select("*")
+      .eq("patient_id", patientId.trim())
+      .single();
+
+    if (error && error.code !== SUPABASE_ERROR_CODE_NO_ROWS) throw error;
+
+    return {
+      data: (data as RegisteredPatient | null) ?? null,
+      error: null,
+    };
+  } catch (error) {
+    return { data: null, error: error as Error };
+  }
+}
+
+export async function processBooking(
+  bookingInfo: BookingInfo,
+): Promise<{ data: BookingResult | null; error: Error | null }> {
+  try {
+    const newBookingId = `BK-${bookingInfo.date.replace(/-/g, "")}-${bookingInfo.time.replace(":", "")}-${bookingInfo.therapist.substring(0, 3).toUpperCase()}-${Date.now().toString().slice(-4)}`;
+
+    const payload = {
+      date: bookingInfo.date,
+      time: bookingInfo.time,
+      therapist: bookingInfo.therapist,
+      patientId: bookingInfo.patientId,
+      patientFirstName: bookingInfo.patientFirstName,
+      patientLastName: bookingInfo.patientLastName,
+      patientPhone: bookingInfo.patientPhone,
+      bookingId: newBookingId,
+    };
+
+    const { data, error } = await supabaseClient.rpc("process_booking", {
+      booking_info: payload,
+    });
+
+    if (error) throw error;
+
+    return { data: data as BookingResult | null, error: null };
+  } catch (error) {
+    return { data: null, error: error as Error };
+  }
 }

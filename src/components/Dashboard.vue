@@ -3,6 +3,7 @@ import { ref, watch, onMounted, computed } from 'vue'
 import Swal from 'sweetalert2'
 import ScheduleTable from './ScheduleTable.vue'
 import ScheduleCards from './ScheduleCards.vue'
+import BookingModal from './BookingModal.vue'
 import { getDailyScheduleData } from '../services/supabase'
 import type { ScheduleData } from '../types'
 
@@ -19,6 +20,7 @@ const emit = defineEmits<{
 const selectedDate = ref(props.currentDate)
 const scheduleData = ref<ScheduleData | null>(null)
 const isLoading = ref(false)
+const bookingSlot = ref<{ time: string; therapist: string } | null>(null)
 
 const isMobile = computed(() => props.windowWidth <= 768)
 
@@ -46,6 +48,19 @@ async function loadSchedule(date: string) {
   } finally {
     isLoading.value = false
   }
+}
+
+function handleBookSlot(payload: { time: string; therapist: string }) {
+  bookingSlot.value = payload
+}
+
+function closeBooking() {
+  bookingSlot.value = null
+}
+
+async function handleBooked() {
+  bookingSlot.value = null
+  await loadSchedule(selectedDate.value)
 }
 
 watch(selectedDate, (newDate) => {
@@ -91,8 +106,42 @@ onMounted(() => {
     </div>
 
     <template v-else-if="scheduleData">
-      <ScheduleTable v-if="!isMobile" :data="scheduleData" />
-      <ScheduleCards v-else :data="scheduleData" />
+      <div
+        v-if="scheduleData.isHoliday"
+        class="mb-4 flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-800"
+      >
+        <i class="fa-solid fa-calendar-xmark mt-1"></i>
+        <div>
+          <p class="m-0 font-semibold">
+            วันหยุด: {{ scheduleData.holidayDescription || 'วันหยุด' }}
+          </p>
+          <p class="m-0 mt-1 text-sm text-amber-700">
+            ไม่สามารถจองคิวในวันนี้ได้
+          </p>
+        </div>
+      </div>
+
+      <ScheduleTable
+        v-if="!isMobile"
+        :data="scheduleData"
+        :is-holiday="scheduleData.isHoliday"
+        @book="handleBookSlot"
+      />
+      <ScheduleCards
+        v-else
+        :data="scheduleData"
+        :is-holiday="scheduleData.isHoliday"
+        @book="handleBookSlot"
+      />
     </template>
+
+    <BookingModal
+      :open="!!bookingSlot"
+      :date="selectedDate"
+      :time="bookingSlot?.time ?? ''"
+      :therapist="bookingSlot?.therapist ?? ''"
+      @close="closeBooking"
+      @booked="handleBooked"
+    />
   </div>
 </template>
