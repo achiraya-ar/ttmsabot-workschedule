@@ -1,35 +1,31 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import Swal from 'sweetalert2'
-import { getLoginPassword } from '../services/supabase'
+import { loginWithUsername } from '../services/auth'
+import type { UserProfile } from '../types'
 
 const emit = defineEmits<{
-  (e: 'login'): void
+  (e: 'login', profile: UserProfile): void
 }>()
 
+const username = ref('')
 const password = ref('')
 const isLoading = ref(false)
 
 async function handleSubmit() {
-  if (!password.value) return
+  if (!username.value.trim() || !password.value) return
+
   isLoading.value = true
   Swal.fire({ title: 'กำลังตรวจสอบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() })
+
   try {
-    const correctPassword = await getLoginPassword()
-    if (correctPassword === null) {
-      Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถดึงข้อมูลรหัสผ่านได้', 'error')
-      return
-    }
-    if (password.value === correctPassword) {
-      Swal.close()
-      sessionStorage.setItem('isLoggedIn', 'true')
-      emit('login')
-    } else {
-      Swal.fire('ล็อกอินล้มเหลว', 'รหัสผ่านไม่ถูกต้อง', 'error')
-    }
+    const profile = await loginWithUsername(username.value, password.value)
+    Swal.close()
+    emit('login', profile)
   } catch (err: unknown) {
+    Swal.close()
     const message = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดที่ไม่คาดคิด'
-    Swal.fire('เกิดข้อผิดพลาด', message, 'error')
+    Swal.fire('ล็อกอินล้มเหลว', message, 'error')
   } finally {
     isLoading.value = false
   }
@@ -43,12 +39,26 @@ async function handleSubmit() {
     </h2>
     <form @submit.prevent="handleSubmit">
       <div class="mb-7">
+        <label for="username" class="block mb-2 font-semibold text-[#212121] text-[1.05rem]">ชื่อผู้ใช้</label>
+        <input
+          id="username"
+          v-model="username"
+          type="text"
+          required
+          autocomplete="username"
+          placeholder="กรอกชื่อผู้ใช้"
+          class="w-full px-4 py-3.5 border border-[#AABBDD] rounded-lg text-[1.05rem] font-[Prompt] transition-all duration-200 focus:outline-none focus:border-[#2F59A8] focus:shadow-[0_0_0_4px_rgba(47,89,168,0.2)]"
+        />
+      </div>
+      <div class="mb-7">
         <label for="password" class="block mb-2 font-semibold text-[#212121] text-[1.05rem]">รหัสผ่าน</label>
         <input
           id="password"
           v-model="password"
           type="password"
           required
+          autocomplete="current-password"
+          placeholder="กรอกรหัสผ่าน"
           class="w-full px-4 py-3.5 border border-[#AABBDD] rounded-lg text-[1.05rem] font-[Prompt] transition-all duration-200 focus:outline-none focus:border-[#2F59A8] focus:shadow-[0_0_0_4px_rgba(47,89,168,0.2)]"
         />
       </div>
@@ -58,7 +68,7 @@ async function handleSubmit() {
           :disabled="isLoading"
           class="px-6 py-3 border-none rounded-md cursor-pointer font-[Prompt] text-[1.05rem] font-medium transition-all duration-200 bg-[#2F59A8] text-white hover:bg-[#204A8B] hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          เข้าสู่ระบบ
+          {{ isLoading ? 'กำลังตรวจสอบ...' : 'เข้าสู่ระบบ' }}
         </button>
       </div>
     </form>

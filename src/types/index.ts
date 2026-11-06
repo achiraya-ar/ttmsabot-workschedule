@@ -31,7 +31,13 @@ export interface Blockage {
   reason: string | null
 }
 
-export interface AppSetting {
-  setting_name: string
-  setting_value: string
+export interface UserProfile {
+  id: string
+  email: string
+  full_name: string
+  role: string
+  username: string
+  can_access_personalworkschedule: boolean
+  can_access_workschedule: boolean
+  can_access_bookingportalmanager: boolean
 }
